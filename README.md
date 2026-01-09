@@ -133,28 +133,7 @@ ClinicEMR is built around:
 
 ## 📂 Project Structure (High-Level)
 
-\`\`\`text
-clinicemr/
-├── admin/
-├── agent/
-├── api/
-├── assets/
-├── includes/
-├── modules/
-│   ├── patients/
-│   ├── visits/
-│   ├── pharmacy/
-│   ├── billing/
-│   ├── inventory/
-│   ├── hr/
-│   └── reports/
-├── screenshots/
-├── uploads/
-├── index.php
-└── config.php
-\`\`\`
 
----
 
 ## 🚀 Installation
 
@@ -207,17 +186,12 @@ If this project helps you, your clinic, or your organization, you can support co
 
 ### 💳 PayPal  
 👉 [Donate via PayPal](https://www.paypal.com/paypalme/lidwaji7)  
-📧 lidwaji7@gmail.com
+
 
 ### 📱 M-Pesa (Kenya)  
-Send your donation to this Paybill number:  
-**Paybill:** \`123456\`  
-**Account Number:** \`Lidwaji7\`  
-*(Replace with your actual Paybill and Account Number)*
+Send your donation to this send via M-Pesa Mobile:  
+**Phone Number:** \`+254798530739\`  
 
-Or send via M-Pesa Mobile:  
-**Phone Number:** \`+2547XXXXXXXX\`  
-*(Your personal M-Pesa number)*
 
 ---
 
