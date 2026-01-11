@@ -14,6 +14,10 @@ Designed and developed in a **live hospital environment**, ClinicEMR focuses on 
 - 👤 **Username:** demo@clinicemr
 - 🔑 **Password:** demo123
 
+  ### 🧍 System Login Page
+![System LOgin](screenshots/system_login.jpg)
+
+
 > ⚠️ Demo data is anonymized and reset periodically.
 
 ---
