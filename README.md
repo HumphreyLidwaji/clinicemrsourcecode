@@ -20,11 +20,7 @@ Designed and developed in a **live hospital environment**, ClinicEMR focuses on 
 
 > ⚠️ Demo data is anonymized and reset periodically.
 
----
-
 ## 📸 Screenshots & UI Preview
-
-> Replace image paths once you upload screenshots to `/screenshots/`
 
 ### 🧍 Patient Registration
 ![Patient Registration](screenshots/patient-registration.png)
@@ -184,7 +180,7 @@ ClinicEMR is built around:
 
 ## ❤️ Support & Donations
 
-ClinicEMR is developed and maintained through **personal time and real hospital deployments**.
+ClinicEMR is developed and maintained through **personal time and real hospital experiencs**.
 
 If this project helps you, your clinic, or your organization, you can support continued development through a donation:
 
