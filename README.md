@@ -134,7 +134,7 @@ Step 2: Download and Extract
 bash
 
 cd /var/www/html
-git clone https://github.com/yourusername/clinicemr-kenya.git
+git clone(https://github.com/HumphreyLidwaji/clinicemrsourcecode)
 cd clinicemr-kenya
 
 Step 3: Database Setup
