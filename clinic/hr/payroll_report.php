@@ -1,0 +1,257 @@
+<?php
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+require_once $_SERVER['DOCUMENT_ROOT'] . '/includes/inc_all.php';
+
+if (!isset($_GET['period_id']) || empty($_GET['period_id'])) {
+    $_SESSION['alert_type'] = "error";
+    $_SESSION['alert_message'] = "Payroll period ID is required!";
+    header("Location: payroll_management.php");
+    exit;
+}
+
+$period_id = intval($_GET['period_id']);
+
+// Get period details
+$period_sql = "SELECT * FROM payroll_periods WHERE period_id = ?";
+$period_stmt = $mysqli->prepare($period_sql);
+$period_stmt->bind_param("i", $period_id);
+$period_stmt->execute();
+$period = $period_stmt->get_result()->fetch_assoc();
+
+if (!$period) {
+    $_SESSION['alert_type'] = "error";
+    $_SESSION['alert_message'] = "Payroll period not found!";
+    header("Location: payroll_management.php");
+    exit;
+}
+
+// Get payroll transactions for this period
+$transactions_sql = "SELECT pt.*, e.first_name, e.last_name, e.employee_number, e.bank_account, e.bank_name, e.bank_branch,
+                            d.department_name, j.title as job_title
+                     FROM payroll_transactions pt
+                     JOIN employees e ON pt.employee_id = e.employee_id
+                     LEFT JOIN departments d ON e.department_id = d.department_id
+                     LEFT JOIN job_titles j ON e.job_title_id = j.job_title_id
+                     WHERE pt.period_id = ?
+                     ORDER BY e.first_name, e.last_name";
+$transactions_stmt = $mysqli->prepare($transactions_sql);
+$transactions_stmt->bind_param("i", $period_id);
+$transactions_stmt->execute();
+$transactions = $transactions_stmt->get_result();
+
+// Calculate totals
+$totals_sql = "SELECT 
+                COUNT(*) as employee_count,
+                SUM(basic_salary) as total_basic,
+                SUM(total_allowances) as total_allowances,
+                SUM(gross_pay) as total_gross,
+                SUM(paye) as total_paye,
+                SUM(nhif) as total_nhif,
+                SUM(nssf_tier1 + nssf_tier2) as total_nssf,
+                SUM(other_deductions) as total_other_deductions,
+                SUM(total_deductions) as total_deductions,
+                SUM(net_pay) as total_net_pay
+               FROM payroll_transactions 
+               WHERE period_id = ?";
+$totals_stmt = $mysqli->prepare($totals_sql);
+$totals_stmt->bind_param("i", $period_id);
+$totals_stmt->execute();
+$totals = $totals_stmt->get_result()->fetch_assoc();
+
+// Set PDF headers if requested
+if (isset($_GET['format']) && $_GET['format'] == 'pdf') {
+    // This would typically generate a PDF using a library like TCPDF or Dompdf
+    // For now, we'll just show an HTML version that can be printed
+    header('Content-Type: text/html; charset=utf-8');
+}
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payroll Report - <?php echo htmlspecialchars($period['period_name']); ?></title>
+    <style>
+        @media print {
+            .no-print { display: none !important; }
+            body { font-size: 12px; }
+            .table { font-size: 11px; }
+        }
+        body { font-family: Arial, sans-serif; }
+        .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
+        .company-name { font-size: 24px; font-weight: bold; }
+        .report-title { font-size: 18px; margin: 10px 0; }
+        .period-info { margin: 10px 0; }
+        .summary-box { background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+        .table { width: 100%; border-collapse: collapse; }
+        .table th, .table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        .table th { background-color: #f2f2f2; font-weight: bold; }
+        .table tfoot { background-color: #333; color: white; }
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        .total-row { font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="no-print" style="margin-bottom: 20px;">
+        <button onclick="window.print()" class="btn btn-primary">Print Report</button>
+        <a href="payroll_view.php?period_id=<?php echo $period_id; ?>" class="btn btn-secondary">Back to Payroll</a>
+    </div>
+
+    <div class="header">
+        <div class="company-name">COMPANY NAME LTD</div>
+        <div class="report-title">PAYROLL REPORT</div>
+        <div class="period-info">
+            <strong>Period:</strong> <?php echo htmlspecialchars($period['period_name']); ?> | 
+            <strong>Dates:</strong> <?php echo date('M j, Y', strtotime($period['start_date'])); ?> to <?php echo date('M j, Y', strtotime($period['end_date'])); ?> | 
+            <strong>Pay Date:</strong> <?php echo date('M j, Y', strtotime($period['pay_date'])); ?>
+        </div>
+        <div class="period-info">
+            <strong>Generated:</strong> <?php echo date('M j, Y g:i A'); ?> | 
+            <strong>Generated By:</strong> System Administrator
+        </div>
+    </div>
+
+    <!-- Summary Section -->
+    <div class="summary-box">
+        <div class="row" style="display: flex; justify-content: space-between;">
+            <div style="flex: 1;">
+                <strong>Total Employees:</strong> <?php echo $totals['employee_count'] ?? 0; ?>
+            </div>
+            <div style="flex: 1;">
+                <strong>Total Gross Pay:</strong> KES <?php echo number_format($totals['total_gross'] ?? 0, 2); ?>
+            </div>
+            <div style="flex: 1;">
+                <strong>Total Deductions:</strong> KES <?php echo number_format($totals['total_deductions'] ?? 0, 2); ?>
+            </div>
+            <div style="flex: 1;">
+                <strong>Total Net Pay:</strong> KES <?php echo number_format($totals['total_net_pay'] ?? 0, 2); ?>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payroll Details Table -->
+    <table class="table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Employee</th>
+                <th>Employee ID</th>
+                <th>Department</th>
+                <th>Basic Salary</th>
+                <th>Allowances</th>
+                <th>Gross Pay</th>
+                <th>PAYE</th>
+                <th>NHIF</th>
+                <th>NSSF</th>
+                <th>Other Ded.</th>
+                <th>Total Ded.</th>
+                <th>Net Pay</th>
+                <th>Bank Details</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php 
+            $counter = 1;
+            while($transaction = $transactions->fetch_assoc()): 
+            ?>
+            <tr>
+                <td><?php echo $counter++; ?></td>
+                <td><?php echo htmlspecialchars($transaction['first_name'] . ' ' . $transaction['last_name']); ?></td>
+                <td><?php echo htmlspecialchars($transaction['employee_number']); ?></td>
+                <td><?php echo htmlspecialchars($transaction['department_name'] ?? 'N/A'); ?></td>
+                <td class="text-right"><?php echo number_format($transaction['basic_salary'], 2); ?></td>
+                <td class="text-right"><?php echo number_format($transaction['total_allowances'], 2); ?></td>
+                <td class="text-right"><strong><?php echo number_format($transaction['gross_pay'], 2); ?></strong></td>
+                <td class="text-right"><?php echo number_format($transaction['paye'], 2); ?></td>
+                <td class="text-right"><?php echo number_format($transaction['nhif'], 2); ?></td>
+                <td class="text-right"><?php echo number_format($transaction['nssf_tier1'] + $transaction['nssf_tier2'], 2); ?></td>
+                <td class="text-right"><?php echo number_format($transaction['other_deductions'], 2); ?></td>
+                <td class="text-right"><?php echo number_format($transaction['total_deductions'], 2); ?></td>
+                <td class="text-right"><strong><?php echo number_format($transaction['net_pay'], 2); ?></strong></td>
+                <td>
+                    <?php if ($transaction['bank_account']): ?>
+                        <?php echo htmlspecialchars($transaction['bank_name'] ?? ''); ?> 
+                        <?php echo htmlspecialchars($transaction['bank_branch'] ?? ''); ?><br>
+                        Acc: <?php echo htmlspecialchars($transaction['bank_account']); ?>
+                    <?php else: ?>
+                        N/A
+                    <?php endif; ?>
+                </td>
+            </tr>
+            <?php endwhile; ?>
+        </tbody>
+        <tfoot>
+            <tr class="total-row">
+                <td colspan="4" class="text-right"><strong>TOTALS</strong></td>
+                <td class="text-right"><strong><?php echo number_format($totals['total_basic'] ?? 0, 2); ?></strong></td>
+                <td class="text-right"><strong><?php echo number_format($totals['total_allowances'] ?? 0, 2); ?></strong></td>
+                <td class="text-right"><strong><?php echo number_format($totals['total_gross'] ?? 0, 2); ?></strong></td>
+                <td class="text-right"><strong><?php echo number_format($totals['total_paye'] ?? 0, 2); ?></strong></td>
+                <td class="text-right"><strong><?php echo number_format($totals['total_nhif'] ?? 0, 2); ?></strong></td>
+                <td class="text-right"><strong><?php echo number_format($totals['total_nssf'] ?? 0, 2); ?></strong></td>
+                <td class="text-right"><strong><?php echo number_format($totals['total_other_deductions'] ?? 0, 2); ?></strong></td>
+                <td class="text-right"><strong><?php echo number_format($totals['total_deductions'] ?? 0, 2); ?></strong></td>
+                <td class="text-right"><strong><?php echo number_format($totals['total_net_pay'] ?? 0, 2); ?></strong></td>
+                <td></td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <!-- Statutory Summary -->
+    <div style="margin-top: 30px;">
+        <h4>Statutory Deductions Summary</h4>
+        <table class="table" style="width: 50%;">
+            <tr>
+                <td><strong>Total PAYE (KRA):</strong></td>
+                <td class="text-right">KES <?php echo number_format($totals['total_paye'] ?? 0, 2); ?></td>
+            </tr>
+            <tr>
+                <td><strong>Total NHIF:</strong></td>
+                <td class="text-right">KES <?php echo number_format($totals['total_nhif'] ?? 0, 2); ?></td>
+            </tr>
+            <tr>
+                <td><strong>Total NSSF:</strong></td>
+                <td class="text-right">KES <?php echo number_format($totals['total_nssf'] ?? 0, 2); ?></td>
+            </tr>
+            <tr class="total-row">
+                <td><strong>Total Statutory Deductions:</strong></td>
+                <td class="text-right">KES <?php echo number_format(($totals['total_paye'] ?? 0) + ($totals['total_nhif'] ?? 0) + ($totals['total_nssf'] ?? 0), 2); ?></td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Approval Section -->
+    <div style="margin-top: 50px;">
+        <div style="display: flex; justify-content: space-between;">
+            <div style="text-align: center;">
+                <div style="border-top: 1px solid #000; width: 200px; margin-top: 60px;"></div>
+                <strong>Prepared By</strong><br>
+                HR Department
+            </div>
+            <div style="text-align: center;">
+                <div style="border-top: 1px solid #000; width: 200px; margin-top: 60px;"></div>
+                <strong>Checked By</strong><br>
+                Finance Manager
+            </div>
+            <div style="text-align: center;">
+                <div style="border-top: 1px solid #000; width: 200px; margin-top: 60px;"></div>
+                <strong>Approved By</strong><br>
+                Director
+            </div>
+        </div>
+    </div>
+
+    <script>
+    window.onload = function() {
+        // Auto-print if PDF format is requested
+        <?php if (isset($_GET['format']) && $_GET['format'] == 'pdf'): ?>
+            window.print();
+        <?php endif; ?>
+    };
+    </script>
+</body>
+</html>

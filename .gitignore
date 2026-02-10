@@ -1,0 +1,19 @@
+# Uploads & runtime data
+uploads/
+clinic/uploads/
+
+# Logs & cache
+*.log
+/tmp/
+cache/
+
+# Environment & configs
+config.php
+.env
+
+# Database dumps (optional – remove if you want them in git)
+*.sql
+
+# OS / editor junk
+.DS_Store
+Thumbs.db

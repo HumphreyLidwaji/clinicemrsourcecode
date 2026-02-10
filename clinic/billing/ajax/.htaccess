@@ -1,0 +1,12 @@
+# Prevent direct access to PHP files
+<Files *.php>
+    Order Deny,Allow
+    Deny from all
+    Allow from 127.0.0.1
+</Files>
+
+# Allow AJAX requests
+RewriteEngine On
+RewriteCond %{HTTP:X-Requested-With} !^XMLHttpRequest$
+RewriteCond %{REQUEST_URI} \.php$
+RewriteRule .* - [F,L]
